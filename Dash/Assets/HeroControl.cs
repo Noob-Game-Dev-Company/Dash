@@ -4,6 +4,8 @@ using UnityEngine;
 public class HeroControl : MonoBehaviour
 {
 
+    #region DEFAULT /////////////////////////////////////////////////////////////////////////////////////
+
     private Vector2 _inputPlayer;
     [SerializeField] float _moveSpeed = 3f;
     [SerializeField] float _jumpForce = 6f;
@@ -26,7 +28,7 @@ public class HeroControl : MonoBehaviour
         _rb = GetComponent<Rigidbody2D>();
         _anim = GetComponent<Animator>();
 
-        _playerGravityDefault = _rb.gravityScale; // дл€ восстановлени€ множител€ гравитации при его отключении
+        _playerGravityDefault = _rb.gravityScale; // дл€ восстановлени€ множител€ гравитации при его отключении ( ќѕ÷»ќЌјЋ№Ќќ! 1 )
     }
 
 
@@ -86,7 +88,10 @@ public class HeroControl : MonoBehaviour
         _anim.SetInteger("moveX", (int)Mathf.Abs(_inputPlayer.x));
     }
 
+    #endregion
 
+
+    #region DRAW ////////////////////////////////////////////////////////////////////////////////////////
 
     private void OnDrawGizmos()
     {
@@ -97,9 +102,12 @@ public class HeroControl : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, _dashDistance); // отрисовка дичтанции –ывка
     }
 
+    #endregion
 
 
-    private float _playerGravityDefault; // дл€ сохранени€ множител€ гравитации перед рывком
+    #region DASH ////////////////////////////////////////////////////////////////////////////////////////
+
+    private float _playerGravityDefault; // дл€ сохранени€ множител€ гравитации перед –ывком ( ќѕ÷»ќЌјЋ№Ќќ! 1 )
 
     private bool _onDash = false; // процесс –ывка
 
@@ -128,18 +136,20 @@ public class HeroControl : MonoBehaviour
         
         _dashProgress = 0f; // сбрасываем прогресс от предыдущего рывка
 
-        _rb.gravityScale = 0; // отключаем гравитацию ( ќѕ÷»ќЌјЋ№Ќќ! )
+        _rb.gravityScale = 0; // отключаем гравитацию ( ќѕ÷»ќЌјЋ№Ќќ! 1 )
         _rb.velocity = Vector2.zero; // обнул€ем возможные возможные скорости
 
         _dashReloaded = false; // ставим навык на перезар€дку
         StartCoroutine(DashReloader()); // запускаем таймер дл€ перезар€дки –ывка
 
         _onDash = true; // за неимением машины состо€ний, обозначаем процесс –ывка
+        _anim.SetBool("onDash", _onDash); // дл€ прерывани€ –ывка при коллизи€х ( ќѕ÷»ќЌјЋ№Ќќ! 2 )
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        StopDash(); // при коллизи€х останавливаем –ывок ( ќѕ÷»ќЌјЋ№Ќќ! )
+        StopDash(); // при коллизи€х останавливаем –ывок ( ќѕ÷»ќЌјЋ№Ќќ! 2 )
     }
 
 
@@ -149,6 +159,7 @@ public class HeroControl : MonoBehaviour
         _rb.velocity = Vector2.zero;
         _rb.gravityScale = _playerGravityDefault;
         _onDash = false;
+        _anim.SetBool("onDash", _onDash); // дл€ прерывани€ –ывка при коллизи€х ( ќѕ÷»ќЌјЋ№Ќќ! 2 )
     }
 
 
@@ -168,7 +179,7 @@ public class HeroControl : MonoBehaviour
             // ¬џ—„»“џ¬ј≈ћ куда должен переместитьс€ персонаж при текущем апдейте
             _dashCurrentPosition = Vector2.MoveTowards(transform.position, _dashFinishPosition, Time.fixedDeltaTime * _dashSpeed);
             _rb.MovePosition(_dashCurrentPosition); // двигаем перса на вычисленную позицию
-            _anim.Play("Dash", 0, _dashProgress); // управл€ем анимацие –ывка ( ќѕ÷»ќЌјЋ№Ќќ! )
+            _anim.Play("Dash", 0, _dashProgress); // управл€ем анимацие –ывка ( ќѕ÷»ќЌјЋ№Ќќ! 3 )
             // пример: если анимаци€ состоит из 10 кадров, а текущий процесс == 30%, то воспроизведЄтс€ 3-й кадр
             // если процесс будет равен 70% - 7-й.
         }
@@ -177,5 +188,7 @@ public class HeroControl : MonoBehaviour
             StopDash();
         }
     }
+
+    #endregion
 
 }

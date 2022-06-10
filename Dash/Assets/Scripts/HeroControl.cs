@@ -10,12 +10,12 @@ public class HeroControl : MonoBehaviour
     [SerializeField] float _moveSpeed = 3f;
     [SerializeField] float _jumpForce = 6f;
 
-    private int _facingDirection = 1; // для направления Рывка (в ту сторону, куда смотрит перс), если нет ввода от игрока
+    private int _facingDirection = 1;
     private Rigidbody2D _rb;
     private Animator _anim;
 
     [SerializeField] KeyCode _jumpButton = KeyCode.Space;
-    [SerializeField] KeyCode _dashButton = KeyCode.LeftControl; // клавиша Рывка
+    [SerializeField] KeyCode _dashButton = KeyCode.LeftControl;
 
     [SerializeField] public bool _onGround;
     [SerializeField] Vector2 groundCheckBoxSize = Vector2.one;
@@ -28,20 +28,22 @@ public class HeroControl : MonoBehaviour
         _rb = GetComponent<Rigidbody2D>();
         _anim = GetComponent<Animator>();
 
-        _playerGravityDefault = _rb.gravityScale; // для восстановления множителя гравитации при его отключении ( ОПЦИОНАЛЬНО! 1 )
+        _playerGravityDefault = _rb.gravityScale;
     }
 
 
     private void Update()
     {
-        InputPlayer();
+        if (_onDash == false) { InputPlayer(); }
         Reflect();
         HeroMove();
 
         if (Input.GetKeyDown(_jumpButton)) { Jump(); }
-        if (Input.GetKeyDown(_dashButton)) { StartDash(); } // вызов метода для подготовки к Рывку
+        if (Input.GetKeyDown(_dashButton)) { StartDash(); }
     }
 
+
+    [SerializeField] ContactFilter2D _contactFilter;
 
     private void FixedUpdate()
     {
@@ -49,15 +51,18 @@ public class HeroControl : MonoBehaviour
         if (_onGround == false && _rb.velocity.y <= 0) { _anim.SetBool("onFall", true); } 
         else { _anim.SetBool("onFall", false); }
 
-        if (_onDash == true) { Dash(); } // вызов метода Рывка
+        if (_onDash == true) { Dash(); }
     }
 
 
     private void CheckGround()
     {
-        _onGround = Physics2D.OverlapBox(groundCheckObj.position, groundCheckBoxSize, 0f, groundMask);
+        //_onGround = Physics2D.OverlapBox(groundCheckObj.position, groundCheckBoxSize, 0f, groundMask);
+        _onGround = _mainCollider.IsTouching(_contactFilter);
         _anim.SetBool("onGround", _onGround);
     }
+
+    
 
 
     private void InputPlayer()
@@ -78,7 +83,7 @@ public class HeroControl : MonoBehaviour
             temp.x *= -1;
             transform.localScale = temp;
 
-            _facingDirection *= -1; // довольно важно для Рывка
+            _facingDirection *= -1;
         }
     }
 
@@ -99,7 +104,7 @@ public class HeroControl : MonoBehaviour
         Gizmos.DrawWireCube(groundCheckObj.position, groundCheckBoxSize);
 
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, _dashDistance); // отрисовка дичтанции Рывка
+        Gizmos.DrawWireSphere(transform.position, _dashDistance);
     }
 
     #endregion
@@ -107,49 +112,64 @@ public class HeroControl : MonoBehaviour
 
     #region DASH ////////////////////////////////////////////////////////////////////////////////////////
 
-    private float _playerGravityDefault; // для сохранения множителя гравитации перед Рывком ( ОПЦИОНАЛЬНО! 1 )
+    private float _playerGravityDefault;
 
-    private bool _onDash = false; // процесс Рывка
+    private bool _onDash = false;
 
-    private Vector2 _dashCurrentPosition; // РАСЧИТАННАЯ следующая позиция при рывке
-    private Vector2 _dashFinishPosition; // позиция в которой должен оказаться перс после Рывка
+    private Vector2 _dashCurrentPosition;
+    private Vector2 _dashFinishPosition;
 
-    [SerializeField] float _dashDistance = 3f; // дистанция Рывка
-    [SerializeField] float _dashSpeed = 3f; // скорость Рывка
+    [SerializeField] float _dashDistance = 3f;
+    [SerializeField] float _dashSpeed = 3f;
 
-    private float _dashProgress = 0f; // текущий процент выполнения Рывка
+    private float _dashProgress = 0f;
 
-    [SerializeField] private float _dashTimeCooldown = 3f; // время для перезарядки навыка "Рывок"
-    private bool _dashReloaded = true; // готовность выполнить рывок (выполнена перезарядка)
+    [SerializeField] private float _dashTimeCooldown = 3f;
+    private bool _dashReloaded = true;
 
 
-    private void StartDash() // настройки ПЕРЕД Рывком
+    private void StartDash()
     {
-        if (_dashReloaded == false) { return; } // выход, если перезарядка ещё не произошла
+        if (_dashReloaded == false) { return; }
 
         _dashCurrentPosition = transform.position;
 
-        // если НЕТ ВВОДА от игрока - движемся в направлении взгляда персонажа
-        if (_inputPlayer == Vector2.zero) { _dashFinishPosition = _dashCurrentPosition + _dashDistance * Vector2.right * _facingDirection; }
-        // если ввод есть, то движемся по направлению ввода
-        else { _dashFinishPosition = _dashCurrentPosition + _dashDistance * _inputPlayer.normalized; }
-        
-        _dashProgress = 0f; // сбрасываем прогресс от предыдущего рывка
+        //if (_inputPlayer == Vector2.zero) { _dashFinishPosition = _dashCurrentPosition + _dashDistance * Vector2.right * _facingDirection; }
+        //else { _dashFinishPosition = _dashCurrentPosition + _dashDistance * _inputPlayer.normalized; }
+        Vector2 tempDirection = CalculateDashDirection();
+        _dashFinishPosition = _dashCurrentPosition + _dashDistance * tempDirection;
 
-        _rb.gravityScale = 0; // отключаем гравитацию ( ОПЦИОНАЛЬНО! 1 )
-        _rb.velocity = Vector2.zero; // обнуляем возможные возможные скорости
+        if (Mathf.Sign(tempDirection.x) != _facingDirection)
+        {
+            Vector3 temp = transform.localScale;
+            temp.x *= -1;
+            transform.localScale = temp;
 
-        _dashReloaded = false; // ставим навык на перезарядку
-        StartCoroutine(DashReloader()); // запускаем таймер для перезарядки Рывка
+            _facingDirection *= -1;
+        }
 
-        _onDash = true; // за неимением машины состояний, обозначаем процесс Рывка
-        _anim.SetBool("onDash", _onDash); // для прерывания Рывка при коллизиях ( ОПЦИОНАЛЬНО! 2 )
+        _dashProgress = 0f;
+
+        _rb.gravityScale = 0;
+        _rb.velocity = Vector2.zero;
+
+        _dashReloaded = false;
+        StartCoroutine(DashReloader());
+
+        _onDash = true;
+        _anim.SetBool("onDash", _onDash);
     }
 
-
+    [SerializeField] private Collider2D _mainCollider;
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        StopDash(); // при коллизиях останавливаем Рывок ( ОПЦИОНАЛЬНО! 2 )
+        StopDash();
+        
+    }
+
+    private Vector2 CalculateDashDirection()
+    {
+        return (Vector2)(Camera.main.ScreenToWorldPoint(Input.mousePosition) - transform.position);
     }
 
 
